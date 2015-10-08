@@ -22,25 +22,8 @@
 #include "devices.h"
 //include "board-m7china.h"
 
-#if defined(CONFIG_MACH_M7_DCG)
-#include "board-m7dcg.h"
-#elif defined(CONFIG_MACH_M7_DTU)
-#include "board-m7dtu.h"
-#elif defined(CONFIG_MACH_M7_DUG)
-#include "board-m7dug.h"
-#elif defined(CONFIG_MACH_M7C_DTU)
-#include "board-m7cdtu.h"
-#elif defined(CONFIG_MACH_M7C_DUG)
-#include "board-m7cdug.h"
-#elif defined(CONFIG_MACH_M7C_DWG)
-#include "board-m7cdwg.h"
-#elif defined(CONFIG_MACH_T6_TL)
-#include "board-t6tl.h"
-#elif defined(CONFIG_MACH_T6_DUG)
-#include "board-t6dug.h"
-#elif defined(CONFIG_MACH_T6_DWG)
-#include "board-t6dwg.h"
-#endif
+#if defined(CONFIG_MACH_M7C)
+#include "board-m7c.h"
 
 #ifdef CONFIG_MSM_DCVS
 static struct msm_dcvs_freq_entry grp3d_freq[] = {

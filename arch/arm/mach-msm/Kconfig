@@ -2980,12 +2980,29 @@ config MACH_IMPRESSION_J
         help
           Support for the HTC APQ8064 IMPRESSION_J.
 
+config MACH_M7C
+        depends on ARCH_APQ8064
+        bool "APQ8064 M7C"
+        help
+          Support for the HTC APQ8064 M7C
 
 config MACH_M7C_DTU
-        depends on ARCH_APQ8064
+        depends on ARCH_APQ8064 && MACH_M7C
         bool "APQ8064 M7C_DTU"
         help
           Support for the HTC APQ8064 M7C_DTU.
+
+config MACH_M7C_DUG
+        depends on ARCH_APQ8064 && MACH_M7C
+        bool "APQ8064 M7C_DUG"
+        help
+          Support for the HTC APQ8064 M7C_DUG.
+
+config MACH_M7C_DWG
+        depends on ARCH_APQ8064 && MACH_M7C
+        bool "APQ8064 M7C_DWG"
+        help
+          Support for the HTC APQ8064 M7C_WG.
 
 config QSC_MODEM
         default n

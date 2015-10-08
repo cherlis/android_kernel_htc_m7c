@@ -226,7 +226,7 @@ endif
 ifdef CONFIG_BT
 	obj-$(CONFIG_MACH_MONARUDO) += board-monarudo-rfkill.o  htc_bdaddress.o
 	obj-$(CONFIG_MACH_IMPRESSION_J) += board-impression_j-rfkill.o  htc_bdaddress.o
-	obj-$(CONFIG_MACH_M7C_DTU) += htc_bdaddress.o
+	obj-$(CONFIG_MACH_M7C) += htc_bdaddress.o
 endif
 
 #ifdef CONFIG_MSM_CAMERA_V4L2
@@ -321,9 +321,7 @@ board-m7wlj-all-objs += board-m7wlj.o board-m7wlj-pmic.o board-m7wlj-storage.o b
 board-m7dcg-all-objs += board-m7dcg.o board-m7dcg-pmic.o board-m7china-storage.o board-m7china-gpiomux.o board-m7dcg-keypad.o board-m7china-wifi.o board-m7china-audio.o board-m7evm-pmic.o board-m7evm.o
 board-m7dug-all-objs += board-m7dug.o board-m7dug-pmic.o board-m7china-storage.o board-m7china-gpiomux.o board-m7dug-keypad.o board-m7china-wifi.o board-m7china-audio.o board-m7evm-pmic.o board-m7evm.o
 board-m7dtu-all-objs += board-m7dtu.o board-m7dtu-pmic.o board-m7china-storage.o board-m7china-gpiomux.o board-m7dtu-keypad.o board-m7china-wifi.o board-m7china-audio.o board-m7evm-pmic.o board-m7evm.o
-board-m7cdtu-all-objs += board-m7cdtu.o board-m7cdtu-pmic.o board-m7china-storage.o board-m7china-gpiomux.o board-m7cdtu-keypad.o board-m7china-wifi.o board-m7china-audio.o board-m7evm-pmic.o board-m7evm.o
-board-m7cdug-all-objs += board-m7cdug.o board-m7cdug-pmic.o board-m7china-storage.o board-m7china-gpiomux.o board-m7cdug-keypad.o board-m7china-wifi.o board-m7china-audio.o board-m7evm-pmic.o board-m7evm.o
-board-m7cdwg-all-objs += board-m7cdwg.o board-m7cdwg-pmic.o board-m7china-storage.o board-m7china-gpiomux.o board-m7cdwg-keypad.o board-m7china-wifi.o board-m7china-audio.o board-m7evm-pmic.o board-m7evm.o
+board-m7c-all-objs += board-m7c.o board-m7c-pmic.o board-m7china-storage.o board-m7china-gpiomux.o board-m7c-keypad.o board-m7china-wifi.o board-m7china-audio.o board-m7evm-pmic.o board-m7evm.o
 board-t6tl-all-objs += board-t6tl.o board-t6tl-pmic.o board-t6china-storage.o board-t6china-gpiomux.o board-t6tl-keypad.o board-t6china-wifi.o board-t6china-audio.o
 board-t6dug-all-objs += board-t6dug.o board-t6dug-pmic.o board-t6china-storage.o board-t6china-gpiomux.o board-t6dug-keypad.o board-t6china-wifi.o board-t6china-audio.o
 board-t6dwg-all-objs += board-t6dwg.o board-t6dwg-pmic.o board-t6china-storage.o board-t6china-gpiomux.o board-t6dwg-keypad.o board-t6china-wifi.o board-t6china-audio.o
@@ -348,9 +346,7 @@ board-m7wlj-all-objs += board-m7wl-display.o board-m7wl-gpu.o
 board-m7dcg-all-objs += board-m7china-display.o board-m7china-gpu.o
 board-m7dug-all-objs += board-m7china-display.o board-m7china-gpu.o
 board-m7dtu-all-objs += board-m7china-display.o board-m7china-gpu.o
-board-m7cdtu-all-objs += board-m7china-display.o board-m7china-gpu.o
-board-m7cdug-all-objs += board-m7china-display.o board-m7china-gpu.o
-board-m7cdwg-all-objs += board-m7china-display.o board-m7china-gpu.o
+board-m7c-all-objs += board-m7china-display.o board-m7china-gpu.o
 board-t6tl-all-objs += board-t6china-display.o board-t6china-gpu.o
 board-t6dug-all-objs += board-t6china-display.o board-t6china-gpu.o
 board-t6dwg-all-objs += board-t6china-display.o board-t6china-gpu.o
@@ -390,9 +386,7 @@ board-m7wlj-all-objs += board-m7wlj-camera.o
 board-m7dcg-all-objs += board-m7china-camera.o
 board-m7dug-all-objs += board-m7china-camera.o
 board-m7dtu-all-objs += board-m7china-camera.o
-board-m7cdtu-all-objs += board-m7china-camera.o
-board-m7cdug-all-objs += board-m7china-camera.o
-board-m7cdwg-all-objs += board-m7china-camera.o
+board-m7c-all-objs += board-m7china-camera.o
 board-dlxp_wl-all-objs += board-dlxp_wl-camera.o
 board-dlxp_ul-all-objs += board-dlxp_ul-camera.o
 board-dlp_dtu-all-objs += board-dlp_china-camera.o
@@ -428,11 +422,11 @@ obj-$(CONFIG_MACH_MPQ8064_HRD) += board-8064-all.o board-8064-regulator.o
 obj-$(CONFIG_MACH_MPQ8064_DTV) += board-8064-all.o board-8064-regulator.o
 obj-$(CONFIG_MACH_MONARUDO) += board-monarudo-all.o board-monarudo-regulator.o
 obj-$(CONFIG_MACH_IMPRESSION_J) += board-impression_j-all.o board-impression_j-regulator.o
-obj-$(CONFIG_MACH_M7C_DTU) += board-m7cdtu-all.o board-m7china-regulator.o
+obj-$(CONFIG_MACH_M7C) += board-m7c-all.o board-m7china-regulator.o
 
 obj-$(CONFIG_MACH_MONARUDO) += htc_util.o
 obj-$(CONFIG_MACH_IMPRESSION_J) += htc_util.o
-obj-$(CONFIG_MACH_M7C_DTU) += htc_util.o
+obj-$(CONFIG_MACH_M7C) += htc_util.o
 obj-$(CONFIG_MACH_ELITE) += board-elite.o board-elite-regulator.o board-elite-gpiomux.o board-elite-storage.o board-elite-audio.o board-elite-camera.o
 obj-$(CONFIG_MACH_ELITE) += board-elite-keypad.o
 obj-$(CONFIG_MACH_ELITE) += htc_bdaddress.o

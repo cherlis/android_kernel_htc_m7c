@@ -30,12 +30,8 @@
 #include "board-m7dtu.h"
 #elif defined(CONFIG_MACH_M7_DUG)
 #include "board-m7dug.h"
-#elif defined(CONFIG_MACH_M7C_DTU)
-#include "board-m7cdtu.h"
-#elif defined(CONFIG_MACH_M7C_DUG)
-#include "board-m7cdug.h"
-#elif defined(CONFIG_MACH_M7C_DWG)
-#include "board-m7cdwg.h"
+#elif defined(CONFIG_MACH_M7C)
+#include "board-m7c.h"
 #elif defined(CONFIG_MACH_DLP_DTU)
 #include "board-dlp_dtu.h"
 #elif defined(CONFIG_MACH_DLP_DUG)
@@ -85,7 +81,7 @@ static int m7china_enable_digital_mic(void)
 	}
 	return 0;
 
-#elif defined(CONFIG_MACH_M7C_DTU) || defined(CONFIG_MACH_M7C_DUG) || defined(CONFIG_MACH_M7C_DWG)
+#elif defined(CONFIG_MACH_M7C)
 	int ret;
 	if ((skuid & 0xFFF00) == 0x36100)
 		ret = 1;
