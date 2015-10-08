@@ -966,9 +966,9 @@ static void __init place_movable_zone(void)
 #endif
 }
 
-static void __init m7cdtu_early_reserve(void)
+static void __init m7c_early_reserve(void)
 {
-	reserve_info = &m7cdtu_reserve_info;
+	reserve_info = &m7c_reserve_info;
 	locate_unstable_memory();
 	place_movable_zone();
 }
