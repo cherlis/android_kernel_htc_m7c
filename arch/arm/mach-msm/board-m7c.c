@@ -5925,7 +5925,13 @@ static void __init m7c_fixup(struct tag *tags, char **cmdline, struct meminfo *m
 	printk(KERN_INFO "M7C_fixup:skuid=0x%x\n", skuid);
 }
 
-MACHINE_START(M7C, "UNKNOWN")
+#if defined(CONFIG_MACH_M7C_DTU)
+MACHINE_START(M7C_DTU, "UNKNOWN")
+#elif defined(CONFIG_MACH_M7C_DUG)
+MACHINE_START(M7C_DUG, "UNKNOWN")
+#elif defined(CONFIG_MACH_M7C_DWG)
+MACHINE_START(M7C_DWG, "UNKNOWN")
+#endif
 	.fixup = m7c_fixup,
 	.map_io = m7c_map_io,
 	.reserve = m7c_reserve,

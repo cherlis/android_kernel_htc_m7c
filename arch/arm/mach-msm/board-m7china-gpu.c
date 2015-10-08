@@ -24,6 +24,7 @@
 
 #if defined(CONFIG_MACH_M7C)
 #include "board-m7c.h"
+#endif
 
 #ifdef CONFIG_MSM_DCVS
 static struct msm_dcvs_freq_entry grp3d_freq[] = {

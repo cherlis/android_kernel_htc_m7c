@@ -42,7 +42,7 @@
 #include <mach/msm_xo.h>
 #if defined(CONFIG_MACH_M7C)
 #include "board-m7c.h"
-
+#endif
 
 #define hr_msleep(x) msleep(x)
 
