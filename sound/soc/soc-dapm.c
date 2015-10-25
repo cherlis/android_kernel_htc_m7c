@@ -78,7 +78,7 @@ static int dapm_down_seq[] = {
 	[snd_soc_dapm_pre] = 0,
 	[snd_soc_dapm_aif_in] = 1,
 	[snd_soc_dapm_aif_out] = 1,
-	[snd_soc_dapm_adc] = 1,
+	[snd_soc_dapm_adc] = 5,
 	[snd_soc_dapm_hp] = 2,
 	[snd_soc_dapm_spk] = 2,
 	[snd_soc_dapm_out_drv] = 2,
@@ -721,19 +721,14 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 
 	DAPM_UPDATE_STAT(widget, path_checks);
 
-	if (widget->id == snd_soc_dapm_supply) {
-		dev_warn(widget->dapm->dev, "widget->id [snd_soc_dapm_supply] \n");
+	if (widget->id == snd_soc_dapm_supply)
 		return 0;
-	}
 
 	switch (widget->id) {
 	case snd_soc_dapm_adc:
 	case snd_soc_dapm_aif_out:
 		if (widget->active) {
 			widget->outputs = snd_soc_dapm_suspend_check(widget);
-			if (widget->outputs <= 0) {
-				dev_warn(widget->dapm->dev, "case snd_soc_dapm_aif_out: widget->outputs <=0 \n");
-			}
 			return widget->outputs;
 		}
 	default:
@@ -744,9 +739,6 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 		/* connected pin ? */
 		if (widget->id == snd_soc_dapm_output && !widget->ext) {
 			widget->outputs = snd_soc_dapm_suspend_check(widget);
-			if (widget->outputs <= 0) {
-				dev_warn(widget->dapm->dev, "widget->id [snd_soc_dapm_output], widget->outputs <=0 \n");
-			}
 			return widget->outputs;
 		}
 
@@ -756,9 +748,6 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 		    (widget->id == snd_soc_dapm_line &&
 		     !list_empty(&widget->sources))) {
 			widget->outputs = snd_soc_dapm_suspend_check(widget);
-			if (widget->outputs <= 0) {
-				dev_warn(widget->dapm->dev, "widget->id [snd_soc_dapm_hp or spk or line], widget->outputs <=0 \n");
-			}
 			return widget->outputs;
 		}
 	}
@@ -797,9 +786,6 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 
 	widget->outputs = con;
 
-	if (widget->outputs <= 0) {
-		dev_warn(widget->dapm->dev, "%s: return widget->outputs <=0 \n", __func__);
-	}
 	return con;
 }
 
@@ -954,11 +940,7 @@ static int dapm_get_playback_paths(struct snd_soc_dapm_context *dapm,
 
 	dev_dbg(dapm->dev, "Playback: checking paths from %s\n",root->name);
 	paths = is_connected_output_ep(root, list);
-	if (paths <= 0) {
-		dev_warn(dapm->dev, "Playback: found %d paths from %s\n", paths, root->name);
-	} else {
-		dev_dbg(dapm->dev, "Playback: found %d paths from %s\n", paths, root->name);
-	}
+	dev_dbg(dapm->dev, "Playback: found %d paths from %s\n", paths, root->name);
 
 	return paths;
 }
@@ -1759,7 +1741,7 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 				w->active ? "active" : "inactive");
 
 	list_for_each_entry(p, &w->sources, list_sink) {
-		if (p->connected && !p->connected(w, p->sink))
+		if (p->connected && !p->connected(w, p->source))
 			continue;
 
 		if (p->connect)
@@ -3390,7 +3372,7 @@ void snd_soc_dapm_shutdown(struct snd_soc_card *card)
 {
 	struct snd_soc_codec *codec;
 
-	list_for_each_entry(codec, &card->codec_dev_list, list) {
+	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
 		soc_dapm_shutdown_codec(&codec->dapm);
 		snd_soc_dapm_set_bias_level(&codec->dapm, SND_SOC_BIAS_OFF);
 	}

@@ -210,7 +210,7 @@ static int msm_pcm_playback_copy(struct snd_pcm_substream *substream, int a,
 	rc = wait_event_timeout(audio->in_wait,
 		(audio->in_write - audio->in_read <= VOIP_MAX_Q_LEN-1),
 		1 * HZ);
-	if (!rc) {
+	if (rc < 0) {
 		pr_debug("%s: write was interrupted\n", __func__);
 		return  -ERESTARTSYS;
 	}
@@ -265,7 +265,7 @@ static int msm_pcm_capture_copy(struct snd_pcm_substream *substream,
 		(audio->capture_state == AUDIO_MVS_CLOSED)),
 		1 * HZ);
 
-	if (!rc) {
+	if (rc < 0) {
 		pr_debug("%s: Read was interrupted\n", __func__);
 		return  -ERESTARTSYS;
 	}

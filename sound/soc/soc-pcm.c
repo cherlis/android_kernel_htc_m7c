@@ -25,6 +25,8 @@
 #include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
+#include <linux/bug.h>
+#include <linux/ratelimit.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -32,15 +34,13 @@
 #include <sound/soc-dpcm.h>
 #include <sound/initval.h>
 
-#undef pr_info
-#undef pr_err
-#define pr_info(fmt, ...) pr_aud_info(fmt, ##__VA_ARGS__)
-#define pr_err(fmt, ...) pr_aud_err(fmt, ##__VA_ARGS__)
-
-#define MAX_BE_USERS	8	
+#define MAX_BE_USERS	8	/* adjust if too low for everday use */
 
 static int soc_dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream);
 
+/* ASoC no host IO hardware.
+ * TODO: fine tune these values for all host less transfers.
+ */
 static const struct snd_pcm_hardware no_host_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
@@ -190,7 +190,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	pm_runtime_get_sync(platform->dev);
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
-        pr_info("%s: pcm open %s\n",__func__,rtd->dai_link->stream_name);
+
 	if (rtd->dai_link->no_host_mode == SND_SOC_DAI_LINK_NO_HOST)
 		snd_soc_set_runtime_hwparams(substream, &no_host_hardware);
 
@@ -931,10 +931,8 @@ static int fe_path_get(struct snd_soc_pcm_runtime *fe,
 
 	list = kzalloc(sizeof(struct snd_soc_dapm_widget_list) +
 			sizeof(struct snd_soc_dapm_widget *), GFP_KERNEL);
-	if (list == NULL){
-		dev_err(fe->dev, "%s: audio %s paths memory allocate failed \n", __func__, stream ? "capture" : "playback");
+	if (list == NULL)
 		return -ENOMEM;
-	}
 
 	
 	paths = snd_soc_dapm_dai_get_connected_widgets(cpu_dai, stream, &list);
@@ -1112,7 +1110,7 @@ static int soc_dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 			continue;
 
 		dev_dbg(be->dev, "dpcm: open BE %s\n", be->dai_link->name);
-		pr_info("%s:open BE %s\n", __func__,be->dai_link->stream_name);
+
 		be_substream->runtime = be->dpcm[stream].runtime;
 		err = soc_pcm_open(be_substream);
 		if (err < 0) {
@@ -1192,6 +1190,7 @@ static int soc_dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
 	struct snd_pcm_runtime *runtime = fe_substream->runtime;
 	int stream = fe_substream->stream, ret = 0;
 
+	mutex_lock(&fe->card->dpcm_mutex);
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
 
 	ret = soc_dpcm_be_dai_startup(fe, fe_substream->stream);
@@ -1215,15 +1214,18 @@ static int soc_dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
 	snd_pcm_limit_hw_rates(runtime);
 
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	mutex_unlock(&fe->card->dpcm_mutex);
 	return 0;
 
 unwind:
 	soc_dpcm_be_dai_startup_unwind(fe, fe_substream->stream);
 be_err:
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
+	mutex_unlock(&fe->card->dpcm_mutex);
 	return ret;
 }
 
+/* BE shutdown - called on DAPM sync updates (i.e. FE is already running)*/
 static int soc_dpcm_be_dai_shutdown(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	struct snd_soc_dpcm_params *dpcm_params;
@@ -1266,6 +1268,7 @@ static int soc_dpcm_fe_dai_shutdown(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *fe = substream->private_data;
 	int stream = substream->stream;
 
+	mutex_lock(&fe->card->dpcm_mutex);
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
 	
 	dev_dbg(fe->dev, "dpcm: close FE %s\n", fe->dai_link->name);
@@ -1288,6 +1291,7 @@ static int soc_dpcm_fe_dai_shutdown(struct snd_pcm_substream *substream)
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_CLOSE;
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
 
+	mutex_unlock(&fe->card->dpcm_mutex);
 	return 0;
 }
 
@@ -1808,7 +1812,7 @@ static int dpcm_run_update_startup(struct snd_soc_pcm_runtime *fe, int stream)
 	if (fe->dpcm[stream].state == SND_SOC_DPCM_STATE_HW_FREE ||
 		fe->dpcm[stream].state == SND_SOC_DPCM_STATE_CLOSE)
 		return -EINVAL;
-        pr_info("%s:fe %s\n",__func__,fe->dai_link->stream_name);
+
 	
 	ret = soc_dpcm_be_dai_startup(fe, stream);
 	if (ret < 0) {
@@ -1952,11 +1956,10 @@ int soc_dpcm_runtime_update(struct snd_soc_dapm_widget *widget)
 
 		paths = fe_path_get(fe, SNDRV_PCM_STREAM_PLAYBACK, &list);
 		if (paths < 0) {
-			
-			
+			pr_warn_ratelimited("%s no valid %s route from source to sink\n",
+					fe->dai_link->name,  "playback");
+			WARN_ON(1);
 			ret = paths;
-			if (list != NULL)
-				fe_path_put(&list);
 			goto out;
 		}
 
@@ -1976,7 +1979,8 @@ int soc_dpcm_runtime_update(struct snd_soc_dapm_widget *widget)
 			be_disconnect(fe, SNDRV_PCM_STREAM_PLAYBACK);
 		}
 
-		fe_path_put(&list); 
+		fe_path_put(&list);
+
 capture:
 		
 		if (!fe->cpu_dai->driver->capture.channels_min)
@@ -1984,11 +1988,9 @@ capture:
 
 		paths = fe_path_get(fe, SNDRV_PCM_STREAM_CAPTURE, &list);
 		if (paths < 0) {
-			
-			
+			pr_warn_ratelimited("%s no valid %s route from source to sink\n",
+					fe->dai_link->name,  "capture");
 			ret = paths;
-			if (list != NULL)
-				fe_path_put(&list);
 			goto out;
 		}
 
@@ -2354,20 +2356,16 @@ int soc_dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 {
 	struct snd_soc_pcm_runtime *fe = fe_substream->private_data;
 	struct snd_soc_dpcm_params *dpcm_params;
-	struct snd_soc_dapm_widget_list *list = NULL;
+	struct snd_soc_dapm_widget_list *list;
 	int ret;
 	int stream = fe_substream->stream;
 
-	mutex_lock(&fe->card->dpcm_mutex);
 	fe->dpcm[stream].runtime = fe_substream->runtime;
 
 	if (fe_path_get(fe, stream, &list) <= 0) {
-		dev_warn(fe->dev, "asoc: %s no valid %s route from source to sink\n",
+		pr_warn_ratelimited("asoc: %s no valid %s route from source to sink\n",
 			fe->dai_link->name, stream ? "capture" : "playback");
-		if (list != NULL)
-			fe_path_put(&list);
-		mutex_unlock(&fe->card->dpcm_mutex);
-		return -EINVAL;
+			return -EINVAL;
 	}
 
 	
@@ -2385,9 +2383,9 @@ int soc_dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 
 	fe_clear_pending(fe, stream);
 	fe_path_put(&list);
-	mutex_unlock(&fe->card->dpcm_mutex);
 	return ret;
 }
+
 
 int soc_dpcm_fe_dai_close(struct snd_pcm_substream *fe_substream)
 {
@@ -2395,7 +2393,6 @@ int soc_dpcm_fe_dai_close(struct snd_pcm_substream *fe_substream)
 	struct snd_soc_dpcm_params *dpcm_params;
 	int stream = fe_substream->stream, ret;
 
-	mutex_lock(&fe->card->dpcm_mutex);
 	ret = soc_dpcm_fe_dai_shutdown(fe_substream);
 
 	
@@ -2406,10 +2403,10 @@ int soc_dpcm_fe_dai_close(struct snd_pcm_substream *fe_substream)
 
 	fe->dpcm[stream].runtime = NULL;
 
-	mutex_unlock(&fe->card->dpcm_mutex);
 	return ret;
 }
 
+/* create a new pcm */
 int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 {
 	struct snd_soc_codec *codec = rtd->codec;
@@ -2517,6 +2514,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		rtd->ops.silence	= platform->driver->ops->silence;
 		rtd->ops.page		= platform->driver->ops->page;
 		rtd->ops.mmap		= platform->driver->ops->mmap;
+		rtd->ops.restart	= platform->driver->ops->restart;
 	}
 
 	if (playback)
