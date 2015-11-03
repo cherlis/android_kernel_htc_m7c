@@ -1974,7 +1974,7 @@ void limHandleBmpsStatusInd(tpAniSirGlobal pMac)
   \sa
   ----------------------------------------------------------------- */
 void limHandleMissedBeaconInd(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
- {
+{
 #ifdef WLAN_ACTIVEMODE_OFFLOAD_FEATURE
     tpSirSmeMissedBeaconInd  pSirMissedBeaconInd =
                            (tpSirSmeMissedBeaconInd)pMsg->bodyptr;
@@ -1987,7 +1987,6 @@ void limHandleMissedBeaconInd(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
          return;
     }
 #endif
-{
     if ( (pMac->pmm.gPmmState == ePMM_STATE_BMPS_SLEEP) ||
          (pMac->pmm.gPmmState == ePMM_STATE_UAPSD_SLEEP)||
          (pMac->pmm.gPmmState == ePMM_STATE_WOWLAN) )

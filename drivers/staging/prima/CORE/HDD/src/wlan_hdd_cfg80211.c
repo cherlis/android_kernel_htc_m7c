@@ -6759,6 +6759,7 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
     if (SIR_MAC_TDLS_DIS_REQ !=  action_code)
     {
         long rc;
+
         rc = wait_for_completion_interruptible_timeout(&pAdapter->tdls_mgmt_comp,
                                                             msecs_to_jiffies(WAIT_TIME_TDLS_MGMT));
 

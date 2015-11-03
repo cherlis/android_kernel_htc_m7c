@@ -351,6 +351,7 @@ typedef enum
 
    WLAN_HAL_UPDATE_VHT_OP_MODE_REQ          = 182,
    WLAN_HAL_UPDATE_VHT_OP_MODE_RSP          = 183,
+
    WLAN_HAL_P2P_NOA_START_IND               = 184,
 
    WLAN_HAL_GET_ROAM_RSSI_REQ               = 185,
@@ -360,7 +361,8 @@ typedef enum
    WLAN_HAL_DEL_BA_IND                      = 188,
    WLAN_HAL_DHCP_START_IND                  = 189,
    WLAN_HAL_DHCP_STOP_IND                   = 190,
-   WLAN_HAL_MSG_MAX = WLAN_HAL_MSG_TYPE_MAX_ENUM_SIZE
+
+  WLAN_HAL_MSG_MAX = WLAN_HAL_MSG_TYPE_MAX_ENUM_SIZE
 }tHalHostMsgType;
 
 /* Enumeration for Version */
@@ -1268,7 +1270,7 @@ typedef PACKED_PRE struct PACKED_POST
     /*Reserved to align next field on a dword boundary*/
     tANI_U8  reserved;
 
-        /*These rates are the intersection of peer and self capabilities.*/
+    /*These rates are the intersection of peer and self capabilities.*/
     tSirSupportedRates supportedRates;
 
 } tConfigStaParams, *tpConfigStaParams;
@@ -1438,12 +1440,12 @@ typedef PACKED_PRE struct PACKED_POST
     tANI_U8 vhtTxBFEnabled:1;
     tANI_U8 reserved:5;
 
-    /*These rates are the intersection of peer and self capabilities.*/
+        /*These rates are the intersection of peer and self capabilities.*/
     tSirSupportedRates_V1 supportedRates;
 
     tANI_U8  vhtCapable;
     tANI_U8  vhtTxChannelWidthSet;
-    
+
 } tConfigStaParams_V1, *tpConfigStaParams_V1;
 
 typedef PACKED_PRE struct PACKED_POST
