@@ -118,6 +118,30 @@ typedef enum
    WDA_INVALID_STA_INDEX,
    WDA_VALID_STA_INDEX
 }WDA_ValidStaIndex;
+typedef enum
+{
+  eWDA_AUTH_TYPE_NONE,    //never used
+  // MAC layer authentication types
+  eWDA_AUTH_TYPE_OPEN_SYSTEM,
+  // Upper layer authentication types
+  eWDA_AUTH_TYPE_WPA,
+  eWDA_AUTH_TYPE_WPA_PSK,
+
+  eWDA_AUTH_TYPE_RSN,
+  eWDA_AUTH_TYPE_RSN_PSK,
+  eWDA_AUTH_TYPE_FT_RSN,
+  eWDA_AUTH_TYPE_FT_RSN_PSK,
+  eWDA_AUTH_TYPE_WAPI_WAI_CERTIFICATE,
+  eWDA_AUTH_TYPE_WAPI_WAI_PSK,
+  eWDA_AUTH_TYPE_CCKM_WPA,
+  eWDA_AUTH_TYPE_CCKM_RSN,
+  eWDA_AUTH_TYPE_WPA_NONE,
+  eWDA_AUTH_TYPE_AUTOSWITCH,
+  eWDA_AUTH_TYPE_SHARED_KEY,
+  eWDA_NUM_OF_SUPPORT_AUTH_TYPE,
+  eWDA_AUTH_TYPE_FAILED = 0xff,
+  eWDA_AUTH_TYPE_UNKNOWN = eCSR_AUTH_TYPE_FAILED,
+}WDA_AuthType;
 
 /*--------------------------------------------------------------------------
   Utilities
@@ -137,6 +161,11 @@ typedef enum
 #define IS_ACTIVEMODE_OFFLOAD_FEATURE_ENABLE 0
 #endif
 
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+#define IS_ROAM_SCAN_OFFLOAD_FEATURE_ENABLE ((WDI_getHostWlanFeatCaps(WLAN_ROAM_SCAN_OFFLOAD)) & (WDA_getFwWlanFeatCaps(WLAN_ROAM_SCAN_OFFLOAD)))
+#else
+#define IS_ROAM_SCAN_OFFLOAD_FEATURE_ENABLE 0
+#endif
 
 /*--------------------------------------------------------------------------
   Definitions for Data path APIs
@@ -640,7 +669,12 @@ tBssSystemRole wdaGetGlobalSystemRole(tpAniSirGlobal pMac);
 
 /* WDA_IS_RX_IN_SCAN *********************************************************/
 #  define WDA_IS_RX_IN_SCAN(pRxMeta)  (((WDI_DS_RxMetaInfoType*)(pRxMeta))->scan)
-
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+/* WDA_GET_OFFLOADSCANLEARN **************************************************/
+#  define WDA_GET_OFFLOADSCANLEARN(pRxMeta) (((WDI_DS_RxMetaInfoType*)(pRxMeta))->offloadScanLearn)
+/* WDA_GET_ROAMCANDIDATEIND **************************************************/
+#  define WDA_GET_ROAMCANDIDATEIND(pRxMeta) (((WDI_DS_RxMetaInfoType*)(pRxMeta))->roamCandidateInd)
+#endif
 /* WDA_GET_RX_RSSI_DB ********************************************************/
 // Volans RF
 #  define WDA_RSSI_OFFSET             100
@@ -940,13 +974,11 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_UPDATE_PROBE_RSP_TEMPLATE_IND     SIR_HAL_UPDATE_PROBE_RSP_TEMPLATE_IND
 #define WDA_SIGNAL_BTAMP_EVENT         SIR_HAL_SIGNAL_BTAMP_EVENT
 
-#ifdef ANI_CHIPSET_VOLANS
 #ifdef FEATURE_OEM_DATA_SUPPORT
 /* PE <-> HAL OEM_DATA RELATED MESSAGES */
 #define WDA_START_OEM_DATA_REQ         SIR_HAL_START_OEM_DATA_REQ 
 #define WDA_START_OEM_DATA_RSP         SIR_HAL_START_OEM_DATA_RSP
 #define WDA_FINISH_OEM_DATA_REQ        SIR_HAL_FINISH_OEM_DATA_REQ
-#endif
 #endif
 
 #define WDA_SET_MAX_TX_POWER_REQ       SIR_HAL_SET_MAX_TX_POWER_REQ
@@ -995,6 +1027,10 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 /*Indication comming from lower driver*/
 #define WDA_SET_PNO_CHANGED_IND     SIR_HAL_SET_PNO_CHANGED_IND
 #endif // FEATURE_WLAN_SCAN_PNO
+
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+#define WDA_ROAM_SCAN_OFFLOAD_REQ   SIR_HAL_ROAM_SCAN_OFFLOAD_REQ
+#endif
 
 #ifdef WLAN_WAKEUP_EVENTS
 #define WDA_WAKE_REASON_IND    SIR_HAL_WAKE_REASON_IND  
@@ -1075,6 +1111,9 @@ v_BOOL_t WDA_IsHwFrameTxTranslationCapable(v_PVOID_t pVosGCtx,
 
 #define WDA_UpdateRssiBmps(pvosGCtx,  staId, rssi) \
         WLANTL_UpdateRssiBmps(pvosGCtx, staId, rssi)
+
+#define WDA_UpdateLinkCapacity(pvosGCtx,  staId, linkCapacity) \
+        WLANTL_UpdateLinkCapacity(pvosGCtx, staId, linkCapacity)
 
 #ifdef WLAN_PERF 
 /*==========================================================================
@@ -1765,6 +1804,7 @@ tANI_U8 WDA_getFwWlanFeatCaps(tANI_U8 featEnumValue);
     Or if host driver detects any abnormal stcuk may display
 
   PARAMETERS
+    pMac : upper MAC context pointer
     displaySnapshot : Display DXE snapshot option
     enableStallDetect : Enable stall detect feature
                         This feature will take effect to data performance
@@ -1776,8 +1816,9 @@ tANI_U8 WDA_getFwWlanFeatCaps(tANI_U8 featEnumValue);
 ===========================================================================*/
 void WDA_TransportChannelDebug
 (
-   v_BOOL_t   displaySnapshot,
-   v_BOOL_t   toggleStallDetect
+  tpAniSirGlobal pMac,
+  v_BOOL_t       displaySnapshot,
+  v_BOOL_t       toggleStallDetect
 );
 
 /*==========================================================================
@@ -1793,5 +1834,20 @@ void WDA_TransportChannelDebug
 
 ===========================================================================*/
 void WDA_TrafficStatsTimerActivate(wpt_boolean activate);
+
+/*==========================================================================
+  FUNCTION   WDA_SetEnableSSR
+
+  DESCRIPTION
+    API to enable/disable SSR on WDI timeout
+
+  PARAMETERS
+    enableSSR : enable/disable SSR
+
+  RETURN VALUE
+    NONE
+
+===========================================================================*/
+void WDA_SetEnableSSR(v_BOOL_t enableSSR);
 
 #endif

@@ -50,7 +50,6 @@
  * --------------------------------------------------------------------
  *
  */
-#define WNI_PRINT_DEBUG
 
 #include <sirCommon.h>
 #include <sirDebug.h>
@@ -58,7 +57,6 @@
 #include <wlan_qct_wda.h>
 
 #include <stdarg.h>
-#include "sirWrapper.h"
 #include "utilsGlobal.h"
 #include "macInitApi.h"
 #include "palApi.h"
@@ -68,27 +66,6 @@
 #ifdef ANI_OS_TYPE_ANDROID
 #include <linux/kernel.h>
 #endif
-
-
-//This is not right here. Need to find a better place.
-//_vsnprintf is a function in Windows
-//Temporary workaround.
-#ifndef ANI_OS_TYPE_WINDOWS
-#ifndef _vsnprintf
-#define _vsnprintf vsnprintf
-#endif
-#endif // not Windows
-
-#define dbgTraceInfo(_Mask, _InParams)                 \
-  {                                                      \
-    KdPrint (_InParams) ;                                 \
-  }
-
-#define utilLogLogDebugMessage(HddAdapter, _LogBuffer)   \
-  {                                                      \
-    VOS_TRACE(VOS_MODULE_ID_SYS, VOS_TRACE_LEVEL_INFO,   \
-              _LogBuffer);                               \
-  }
 
 
 // ---------------------------------------------------------------------
@@ -155,15 +132,6 @@ logDeinit(tpAniSirGlobal pMac)
  * @return None
  */
 
-#if defined(ANI_OS_TYPE_OSX)
-#if defined ANI_FIREWIRE_LOG
-#include <IOKit/firewire/FireLog.h>
-#define printk          FireLog
-#else
-#define printk          printf
-#endif
-#define tx_time_get()   (0)
-#endif
 
 void logDbg(tpAniSirGlobal pMac, tANI_U8 modId, tANI_U32 debugLevel, const char *pStr,...)
 {
@@ -244,17 +212,7 @@ void logDebug(tpAniSirGlobal pMac, tANI_U8 modId, tANI_U32 debugLevel, const cha
     vosDebugLevel = getVosDebugLevel(debugLevel);
     vosModuleId = getVosModuleId(modId);
 
-#ifdef ANI_OS_TYPE_ANDROID
     vsnprintf(logBuffer, LOG_SIZE - 1, pStr, marker);
-#else
-
-#ifdef WINDOWS_DT
-    RtlStringCbVPrintfA( &logBuffer[ 0 ], LOG_SIZE - 1, pStr, marker );
-#else
-    _vsnprintf(logBuffer, LOG_SIZE - 1, (char *)pStr, marker);
-#endif
-
-#endif
     VOS_TRACE(vosModuleId, vosDebugLevel, "%s", logBuffer);
 
     // The caller must check loglevel

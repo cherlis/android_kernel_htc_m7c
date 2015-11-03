@@ -335,7 +335,7 @@ typedef struct sPESession           // Added to Support BT-AMP
     /*Flag to Track Status/Indicate HBFailure on this session */
     tANI_BOOLEAN LimHBFailureStatus;
     tANI_U32           gLimPhyMode;
-
+    tANI_U8            amsduSupportedInBA;
     tANI_U8          txLdpcIniFeatureEnabled;
     /**
      * Following is the place holder for free peer index pool.
@@ -349,7 +349,8 @@ typedef struct sPESession           // Added to Support BT-AMP
 #ifdef FEATURE_WLAN_TDLS
     tANI_U32  peerAIDBitmap[2];
 #endif
-
+    tANI_BOOLEAN fWaitForProbeRsp;
+    tANI_BOOLEAN fIgnoreCapsChange;
 }tPESession, *tpPESession;
 
 #define LIM_MAX_ACTIVE_SESSIONS 4

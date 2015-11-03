@@ -218,7 +218,6 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
       fwIdx = ReorderInfo->ucCIndex - 1;
    }
 
-#ifdef ANI_CHIPSET_VOLANS
    /* Do replay check before giving packets to upper layer 
       replay check code : check whether replay check is needed or not */
    if(VOS_TRUE == pClientSTA->ucIsReplayCheckValid)
@@ -278,7 +277,6 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
          }
        } 
    }
-#endif
 
    status = WLANTL_ChainFrontPkts(fwIdx, opCode, 
                                   &vosDataBuff, ReorderInfo, NULL);
@@ -370,9 +368,7 @@ void WLANTL_InitBAReorderBuffer
       for(pIdx = 0; pIdx < WLANTL_MAX_WINSIZE; pIdx++)
       {
          pTLCb->reorderBufferPool[idx].arrayBuffer[pIdx] = NULL;
-#ifdef ANI_CHIPSET_VOLANS
          pTLCb->reorderBufferPool[idx].ullReplayCounter[pIdx] = 0; 
-#endif
       }
    }
 
@@ -753,7 +749,7 @@ WLANTL_BaSessionDel
     vosStatus = vos_timer_stop(&reOrderInfo->agingTimer);
     if(!VOS_IS_STATUS_SUCCESS(vosStatus))
     { 
-       TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Timer stop fail", vosStatus));
+       TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Timer stop fail: %d", vosStatus));
        return vosStatus;
     }
   }
@@ -1075,9 +1071,7 @@ VOS_STATUS WLANTL_MSDUReorder
    VOS_STATUS           timerStatus = VOS_STATUS_SUCCESS; 
    VOS_TIMER_STATE      timerState;
    v_SIZE_t             rxFree;
-#ifdef ANI_CHIPSET_VOLANS
    v_U64_t              ullreplayCounter = 0; /* 48-bit replay counter */
-#endif
    if((NULL == pTLCb) || (*vosDataBuff == NULL))
    {
       TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Invalid ARG pTLCb 0x%p, vosDataBuff 0x%p",
@@ -1155,13 +1149,11 @@ VOS_STATUS WLANTL_MSDUReorder
          status = WLANTL_QueueCurrent(currentReorderInfo,
                                       vosDataBuff,
                                       ucSlotIdx);
-#ifdef ANI_CHIPSET_VOLANS
          if(VOS_TRUE == pClientSTA->ucIsReplayCheckValid)
          {
              WLANTL_FillReplayCounter(currentReorderInfo,
                                ullreplayCounter, ucSlotIdx);
          }
-#endif
          if(VOS_STATUS_E_RESOURCES == status)
          {
             /* This is the case slot index is already cycle one route, route all the frames Qed */
@@ -1258,13 +1250,11 @@ VOS_STATUS WLANTL_MSDUReorder
          status = WLANTL_QueueCurrent(currentReorderInfo,
                                       vosDataBuff,
                                       ucSlotIdx);
-#ifdef ANI_CHIPSET_VOLANS
            if(VOS_TRUE == pClientSTA->ucIsReplayCheckValid)
            {
                WLANTL_FillReplayCounter(currentReorderInfo,
                                  ullreplayCounter, ucSlotIdx);
            }
-#endif
          if(VOS_STATUS_E_RESOURCES == status)
          {
             /* This is the case slot index is already cycle one route, route all the frames Qed */
@@ -1321,13 +1311,11 @@ VOS_STATUS WLANTL_MSDUReorder
          status = WLANTL_QueueCurrent(currentReorderInfo,
                                       vosDataBuff,
                                       ucSlotIdx);
-#ifdef ANI_CHIPSET_VOLANS
            if(VOS_TRUE == pClientSTA->ucIsReplayCheckValid)
            {
                WLANTL_FillReplayCounter(currentReorderInfo,
                                  ullreplayCounter, ucSlotIdx);
            }
-#endif
          if(VOS_STATUS_E_RESOURCES == status)
          {
             vos_pkt_return_packet(vosPktIdx); 
@@ -1458,13 +1446,11 @@ VOS_STATUS WLANTL_MSDUReorder
          status = WLANTL_QueueCurrent(currentReorderInfo,
                                       vosDataBuff,
                                       ucSlotIdx);
-#ifdef ANI_CHIPSET_VOLANS
            if(VOS_TRUE == pClientSTA->ucIsReplayCheckValid)
            {
                WLANTL_FillReplayCounter(currentReorderInfo,
                                  ullreplayCounter, ucSlotIdx);
            }
-#endif
          if(!VOS_IS_STATUS_SUCCESS(status))
          {
             TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Q Current frame fail %d",
@@ -1499,10 +1485,10 @@ VOS_STATUS WLANTL_MSDUReorder
     * Route all the Qed frames upper layer
     * Otherwise, RX thread could be stall */
    vos_pkt_get_available_buffer_pool(VOS_PKT_TYPE_RX_RAW, &rxFree);
-   if(WLANTL_BA_MIN_FREE_RX_VOS_BUFFER > rxFree)
+   if(WLANTL_BA_MIN_FREE_RX_VOS_BUFFER >= rxFree)
    {
-      TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"RX Free", rxFree));
-      TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"RX free buffer count is too low, Pending frame count is %d",
+      TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO, "RX Free: %d", rxFree));
+      TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO, "RX free buffer count is too low, Pending frame count is %d",
                   currentReorderInfo->pendingFramesCount));
       vosPktIdx = NULL;
       status = WLANTL_ChainFrontPkts(ucFwdIdx,
@@ -1568,7 +1554,7 @@ VOS_STATUS WLANTL_MSDUReorder
                                        WLANTL_BA_REORDERING_AGING_TIMER);
          if(!VOS_IS_STATUS_SUCCESS(timerStatus))
          {
-            TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Timer start fail", timerStatus));
+            TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Timer start fail: %d", timerStatus));
             lockStatus = vos_lock_release(&currentReorderInfo->reorderLock);
             if(!VOS_IS_STATUS_SUCCESS(lockStatus))
             {
@@ -1782,7 +1768,6 @@ VOS_STATUS WLANTL_ChainFrontPkts
 
    return status; 
 }/*WLANTL_ChainFrontPkts*/
-#ifdef ANI_CHIPSET_VOLANS
 /*==========================================================================
  
   FUNCTION    WLANTL_FillReplayCounter
@@ -1825,5 +1810,4 @@ void WLANTL_FillReplayCounter
                //pwBaReorder->reorderBuffer->ullReplayCounter);
    return;
 }/*WLANTL_FillReplayCounter*/
-#endif /*End of #ifdef WLANTL_HAL_VOLANS*/
 

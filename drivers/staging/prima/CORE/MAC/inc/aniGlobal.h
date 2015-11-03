@@ -64,9 +64,7 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #include "halTypes.h"
 #include "sirCommon.h"
 #include "aniSystemDefs.h"
-#ifndef ANI_OS_TYPE_OSX
 #include "sysDef.h"
-#endif
 #include "dphGlobal.h"
 #include "limGlobal.h"
 #include "pmmGlobal.h"
@@ -149,6 +147,8 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #ifdef WLAN_FEATURE_CONCURRENT_P2P
 #define MAX_NO_OF_P2P_SESSIONS  5
 #endif //WLAN_FEATURE_CONCURRENT_P2P
+
+#define SPACE_ASCII_VALUE  32
 
 #define SPACE_ASCII_VALUE  32
 
@@ -255,6 +255,11 @@ typedef struct sLimTimers
     TX_TIMER           gLimDeauthAckTimer;
     // This timer is started when single shot NOA insert msg is sent to FW for scan in P2P GO mode
     TX_TIMER           gLimP2pSingleShotNoaInsertTimer;
+    /* This timer is used to convert active channel to
+     * passive channel when there is no beacon
+     * for a period of time on a particular DFS channel
+     */
+    TX_TIMER           gLimActiveToPassiveChannelTimer;
 //********************TIMER SECTION ENDS**************************************************
 // ALL THE FIELDS BELOW THIS CAN BE ZEROED OUT in limInitialize
 //****************************************************************************************
@@ -312,7 +317,12 @@ typedef struct sAniSirLim
     tANI_U32   gLimCurrentScanChannelId;
 
     // Hold onto SCAN criteria
-    tSirSmeScanReq *gpLimSmeScanReq; // this one is used in P2P GO case when scan needs to be actually done a few BIs later after publishing NOA
+    /* The below is used in P2P GO case when we need to defer processing SME Req
+     * to LIM and insert NOA first and process SME req once SNOA is started
+     */
+    tANI_U16 gDeferMsgTypeForNOA;
+    tANI_U32 *gpDefdSmeMsgForNOA;
+
     tLimMlmScanReq *gpLimMlmScanReq;
 
     /// This indicates total length of 'matched' scan results
@@ -327,6 +337,20 @@ typedef struct sAniSirLim
      */
     tLimScanResultNode
            *gLimCachedScanHashTable[LIM_MAX_NUM_OF_SCAN_RESULTS];
+
+    /// This indicates total length of 'matched' scan results
+    tANI_U16   gLimMlmLfrScanResultLength;
+
+    /// This indicates total length of 'cached' scan results
+    tANI_U16   gLimSmeLfrScanResultLength;
+
+    /**
+     * Hash table definition for storing LFR SCAN results
+     * This is the placed holder for roaming candidates as forwarded
+     * by FW
+     */
+    tLimScanResultNode
+        *gLimCachedLfrScanHashTable[LIM_MAX_NUM_OF_SCAN_RESULTS];
 
     /// Place holder for current channel ID
     /// being scanned during background scanning
@@ -891,6 +915,8 @@ tLimMlmOemDataRsp       *gpLimMlmOemDataRsp;
     tANI_U8 reAssocRetryAttempt;
 #endif
     tLimDisassocDeauthCnfReq limDisassocDeauthCnfReq;
+    tANI_U8 deferredMsgCnt;
+    tSirDFSChannelList    dfschannelList;
 } tAniSirLim, *tpAniSirLim;
 
 typedef struct sLimMgmtFrameRegistration
@@ -974,9 +1000,6 @@ typedef struct sAniSirGlobal
 
 {
     tDriverType  gDriverType;
-#if defined(ANI_OS_TYPE_RTAI_LINUX)
-    struct rtLibApp * rt;
-#endif
 
     // we should be able to save this hddHandle in here and deprecate
     // the pAdapter.  For now, compiles are a problem because there
@@ -994,9 +1017,6 @@ typedef struct sAniSirGlobal
     tAniSirSch   sch;
     tAniSirSys   sys;
     tAniSirUtils utils;
-
-
-    tAniSirTxWrapper txWrapper;
     // PAL/HDD handle
     tHddHandle hHdd;
 
@@ -1039,6 +1059,9 @@ typedef struct sAniSirGlobal
     /* Instead of static allocation I will dyanamically allocate memory for dumpTableEntry
         Thinking of using linkedlist  */ 
     tDumpModuleEntry *dumpTableEntry[MAX_DUMP_TABLE_ENTRY];
+#ifdef FEATURE_WLAN_TDLS
+    v_BOOL_t isTdlsPowerSaveProhibited;
+#endif
     
 } tAniSirGlobal;
 

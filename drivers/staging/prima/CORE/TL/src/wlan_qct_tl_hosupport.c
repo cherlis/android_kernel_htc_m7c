@@ -90,7 +90,6 @@
 //#define WLANTL_HO_UTEST
 
 #define WLANTL_HO_DEFAULT_RSSI      0xFF
-#define WLANTL_HO_DEFAULT_ALPHA     5
 #define WLANTL_HO_INVALID_RSSI      -100
 /* RSSI sampling period, usec based
  * To reduce performance overhead
@@ -876,27 +875,20 @@ VOS_STATUS WLANTL_HSGetRSSI
    TLHS_UtestHandleNewRSSI(&currentRSSI, pAdapter);
 #endif /* WLANTL_HO_UTEST */
 
-/* Commenting this part of the code as this may not be necessarity true in all cases */
-#if 0
-   if(WLANTL_HO_INVALID_RSSI == currentRSSI)
-   {
-      return status;
-   }
-#endif
-
-   if(0 == currentHO->historyRSSI)
+   if(0 == tlCtxt->atlSTAClients[STAid]->rssiAvg)
    {
       *currentAvgRSSI = currentRSSI;
    }
    else
    {
-      *currentAvgRSSI = ((currentHO->historyRSSI * currentHO->alpha) +
-                         (currentRSSI * (10 - currentHO->alpha))) / 10;
+      *currentAvgRSSI = ((tlCtxt->atlSTAClients[STAid]->rssiAvg  *
+                          tlCtxt->atlSTAClients[STAid]->rssiAlpha) +
+                         (currentRSSI * (10 - tlCtxt->atlSTAClients[STAid]->rssiAlpha))) / 10;
    }
+
 #ifdef RSSI_HACK
    *currentAvgRSSI = (v_S7_t)dumpCmdRSSI;
 #endif
-
 
    tlCtxt->atlSTAClients[STAid]->rssiAvg = *currentAvgRSSI;
 
@@ -949,6 +941,8 @@ VOS_STATUS WLANTL_HSBMPSRSSIRegionChangedNotification
       return VOS_STATUS_E_INVAL;
    }
 
+   THSGETLOCK("WLANTL_HSBMPSRSSIRegionChangedNotification",
+                                                   &tlCtxt->hoSupport.hosLock);
    currentHO = &(tlCtxt->hoSupport.currentHOState);
    hoSupport = &(tlCtxt->hoSupport);
    preFWNotification = currentHO->fwNotification;
@@ -976,6 +970,8 @@ VOS_STATUS WLANTL_HSBMPSRSSIRegionChangedNotification
    }
    else if(preFWNotification == curFWNotification)
    {
+      THSRELEASELOCK("WLANTL_HSBMPSRSSIRegionChangedNotification",
+                                                   &tlCtxt->hoSupport.hosLock);
       return status;
    }
 
@@ -1011,12 +1007,13 @@ VOS_STATUS WLANTL_HSBMPSRSSIRegionChangedNotification
       nRegionNumber = 1;
    }
 
-
    newRegionNumber = (nRegionNumber > pRegionNumber) ? nRegionNumber : pRegionNumber;
    if((currentHO->regionNumber) && (newRegionNumber == currentHO->regionNumber))
    {
       TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"No Region Change with BMPS mode"));
       preFWNotification = curFWNotification;
+      THSRELEASELOCK("WLANTL_HSBMPSRSSIRegionChangedNotification",
+                                                   &tlCtxt->hoSupport.hosLock);
       return status;
    }
    else if(newRegionNumber > currentHO->regionNumber)
@@ -1074,6 +1071,8 @@ VOS_STATUS WLANTL_HSBMPSRSSIRegionChangedNotification
    TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"BMPS State, MSG from FW, Trigger Event %d, region index %d",
                  evtType, currentHO->regionNumber));
 
+   THSRELEASELOCK("WLANTL_HSBMPSRSSIRegionChangedNotification",
+                                                   &tlCtxt->hoSupport.hosLock);
    return VOS_STATUS_SUCCESS;
 }
 
@@ -1237,6 +1236,7 @@ VOS_STATUS WLANTL_HSHandleRXFrame
       return VOS_STATUS_E_INVAL;
    }
 
+   THSGETLOCK("WLANTL_HSHandleRXFrame", &tlCtxt->hoSupport.hosLock);
    WLANTL_StatHandleRXFrame(pAdapter, pBDHeader, STAid, isBroadcast, dataBuffer);
 
    /* If this frame is not management frame increase frame count */
@@ -1266,12 +1266,14 @@ VOS_STATUS WLANTL_HSHandleRXFrame
    {
       WLANTL_HSGetRSSI(pAdapter, pBDHeader, STAid, &currentAvgRSSI);
       currentHO->historyRSSI = currentAvgRSSI;
+      THSRELEASELOCK("WLANTL_HSHandleRXFrame", &tlCtxt->hoSupport.hosLock);
       return status;
    }
 
    currentTimestamp = WDA_GET_RX_TIMESTAMP(pBDHeader);
    if((currentTimestamp - currentHO->sampleTime) < WLANTL_HO_SAMPLING_PERIOD)
    {
+      THSRELEASELOCK("WLANTL_HSHandleRXFrame", &tlCtxt->hoSupport.hosLock);
       return status;
    }
    currentHO->sampleTime = currentTimestamp;
@@ -1281,6 +1283,7 @@ VOS_STATUS WLANTL_HSHandleRXFrame
    if(!VOS_IS_STATUS_SUCCESS(status))
    {
       TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"Get RSSI Fail"));
+      THSRELEASELOCK("WLANTL_HSHandleRXFrame", &tlCtxt->hoSupport.hosLock);
       return status;
    }
 #ifdef WLAN_ACTIVEMODE_OFFLOAD_FEATURE
@@ -1299,11 +1302,14 @@ VOS_STATUS WLANTL_HSHandleRXFrame
          if(!VOS_IS_STATUS_SUCCESS(status))
          {
             TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Handle new RSSI fail"));
+            THSRELEASELOCK("WLANTL_HSHandleRXFrame",
+                                                  &tlCtxt->hoSupport.hosLock);
             return status;
          }
       }
    }
 
+   THSRELEASELOCK("WLANTL_HSHandleRXFrame", &tlCtxt->hoSupport.hosLock);
    return status;
 }
 
@@ -1433,12 +1439,12 @@ VOS_STATUS WLANTL_HSRegRSSIIndicationCB
          {
             for(sIdx = 0; sIdx < WLANTL_HS_NUM_CLIENT; sIdx++)
             {
-               TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"Reg CB P 0x%x, registered CB P 0x%x",
+               TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"Reg CB P %p, registered CB P %p",
                              crossCBFunction,
                              hoSupport->registeredInd[idx].crossCBFunction[sIdx]));
                if(crossCBFunction == hoSupport->registeredInd[idx].crossCBFunction[sIdx])
                {
-                  TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"Same RSSI %d, Same CB 0x%x already registered",
+                  TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"Same RSSI %d, Same CB %p already registered",
                                rssiValue, crossCBFunction));
                   WLANTL_HSDebugDisplay(pAdapter);
                   THSRELEASELOCK("WLANTL_HSRegRSSIIndicationCB", &tlCtxt->hoSupport.hosLock);
@@ -1701,23 +1707,26 @@ VOS_STATUS WLANTL_HSDeregRSSIIndicationCB
       tlCtxt->hoSupport.registeredInd[currentHO->numThreshold - 1].numClient            = 0;
    }
 
-   if((VOS_FALSE == tlCtxt->isBMPS) && (rssiValue >= currentHO->historyRSSI))
+   if( ((VOS_FALSE == tlCtxt->isBMPS) && (rssiValue >= currentHO->historyRSSI))
+    || ((VOS_TRUE == tlCtxt->isBMPS) && (VOS_TRUE == bmpsAbove)) )
    {
-      TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"Removed Threshold above current RSSI level, old RN %d", currentHO->regionNumber));
+      TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
+                       "Removed Threshold above current RSSI level, old RN %d",
+                                                      currentHO->regionNumber));
       if(0 < currentHO->regionNumber)
       {
          currentHO->regionNumber--;
       }
       else
       {
-         TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Current Region number is 0, cannot decrease anymore"));
+          TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+                        "Current Region number is 0, cannot decrease anymore"));
       }
-      TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"Decrease region number without notification %d", currentHO->regionNumber));
+      TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
+                       "Decrease region number without notification %d",
+                                                      currentHO->regionNumber));
    }
-   else if((VOS_TRUE == tlCtxt->isBMPS) && (VOS_TRUE == bmpsAbove))
-   {
-      currentHO->regionNumber--;
-   }
+
    /* Decrease number of thresholds */
    tlCtxt->hoSupport.currentHOState.numThreshold--;
    /*Reset the FW notification*/
