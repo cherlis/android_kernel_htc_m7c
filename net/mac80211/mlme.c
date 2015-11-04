@@ -273,6 +273,10 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 						 IEEE80211_RC_HT_CHANGED,
 						 tx_channel_type);
 		rcu_read_unlock();
+
+		if (beacon_htcap_ie)
+			ieee80211_wake_queues_by_reason(&sdata->local->hw,
+				IEEE80211_QUEUE_STOP_REASON_CHTYPE_CHANGE);
 	}
 
 	if (queues_stopped)
@@ -384,6 +388,26 @@ static void ieee80211_add_ht_ie(struct ieee80211_sub_if_data *sdata,
 	ieee80211_ie_build_ht_cap(pos, &ht_cap, cap);
 }
 
+static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
+				 struct sk_buff *skb,
+				 struct ieee80211_supported_band *sband)
+{
+	u8 *pos;
+	u32 cap;
+	struct ieee80211_sta_vht_cap vht_cap;
+
+	BUILD_BUG_ON(sizeof(vht_cap) != sizeof(sband->vht_cap));
+
+	memcpy(&vht_cap, &sband->vht_cap, sizeof(vht_cap));
+
+	/* determine capability flags */
+	cap = vht_cap.cap;
+
+	/* reserve and fill IE */
+	pos = skb_put(skb, sizeof(struct ieee80211_vht_cap) + 2);
+	ieee80211_ie_build_vht_cap(pos, &vht_cap, cap);
+}
+
 static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -429,6 +453,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 			4 + /* power capability */
 			2 + 2 * sband->n_channels + /* supported channels */
 			2 + sizeof(struct ieee80211_ht_cap) + /* HT */
+			2 + sizeof(struct ieee80211_vht_cap) + /* VHT */
 			assoc_data->ie_len + /* extra IEs */
 			9, /* WMM */
 			GFP_KERNEL);
@@ -560,6 +585,9 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_11N))
 		ieee80211_add_ht_ie(sdata, skb, assoc_data->ht_information_ie,
 				    sband, local->oper_channel, ifmgd->ap_smps);
+
+	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
+		ieee80211_add_vht_ie(sdata, skb, sband);
 
 	/* if present, add any custom non-vendor IEs that go after HT */
 	if (assoc_data->ie_len && assoc_data->ie) {
@@ -1376,6 +1404,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	u32 changed = 0;
+	u8 bssid[ETH_ALEN];
 
 	ASSERT_MGD_MTX(ifmgd);
 
@@ -1385,7 +1414,10 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	if (WARN_ON(!ifmgd->associated))
 		return;
 
+	memcpy(bssid, ifmgd->associated->bssid, ETH_ALEN);
+
 	ifmgd->associated = NULL;
+	memset(ifmgd->bssid, 0, ETH_ALEN);
 
 	/*
 	 * we need to commit the associated = NULL change because the
@@ -1813,8 +1845,7 @@ ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	if (status_code != WLAN_STATUS_SUCCESS) {
 		printk(KERN_DEBUG "%s: %pM denied authentication (status %d)\n",
 		       sdata->name, mgmt->sa, status_code);
-		ieee80211_destroy_auth_data(sdata, false);
-		return RX_MGMT_CFG80211_RX_AUTH;
+		goto out;
 	}
 
 	switch (ifmgd->auth_data->algorithm) {
@@ -1836,6 +1867,7 @@ ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	}
 
 	printk(KERN_DEBUG "%s: authenticated\n", sdata->name);
+ out:
 	ifmgd->auth_data->done = true;
 	ifmgd->auth_data->timeout = jiffies + IEEE80211_AUTH_WAIT_ASSOC;
 	run_again(ifmgd, ifmgd->auth_data->timeout);
@@ -2183,13 +2215,15 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		       sdata->name, mgmt->sa, status_code);
 		ieee80211_destroy_assoc_data(sdata, false);
 	} else {
+		printk(KERN_DEBUG "%s: associated\n", sdata->name);
+
 		if (!ieee80211_assoc_success(sdata, *bss, mgmt, len)) {
 			/* oops -- internal error -- send timeout for now */
-			ieee80211_destroy_assoc_data(sdata, false);
+			ieee80211_destroy_assoc_data(sdata, true);
+			sta_info_destroy_addr(sdata, mgmt->bssid);
 			cfg80211_put_bss(*bss);
 			return RX_MGMT_CFG80211_ASSOC_TIMEOUT;
 		}
-		printk(KERN_DEBUG "%s: associated\n", sdata->name);
 
 		/*
 		 * destroy assoc_data afterwards, as otherwise an idle
@@ -3287,6 +3321,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	ifmgd->flags &= ~IEEE80211_STA_DISABLE_11N;
 	ifmgd->flags &= ~IEEE80211_STA_NULLFUNC_ACKED;
+	ifmgd->flags &= ~IEEE80211_STA_DISABLE_VHT;
 
 	ifmgd->beacon_crc_valid = false;
 
@@ -3297,20 +3332,35 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	 * We can set this to true for non-11n hardware, that'll be checked
 	 * separately along with the peer capabilities.
 	 */
-	for (i = 0; i < req->crypto.n_ciphers_pairwise; i++)
+	for (i = 0; i < req->crypto.n_ciphers_pairwise; i++) {
 		if (req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP40 ||
 		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_TKIP ||
-		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP104)
+		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP104) {
 			ifmgd->flags |= IEEE80211_STA_DISABLE_11N;
+			ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+			netdev_info(sdata->dev,
+				    "disabling HT/VHT due to WEP/TKIP use\n");
+		}
+	}
 
-	if (req->flags & ASSOC_REQ_DISABLE_HT)
+	if (req->flags & ASSOC_REQ_DISABLE_HT) {
 		ifmgd->flags |= IEEE80211_STA_DISABLE_11N;
+		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+	}
 
 	/* Also disable HT if we don't support it or the AP doesn't use WMM */
 	sband = local->hw.wiphy->bands[req->bss->channel->band];
 	if (!sband->ht_cap.ht_supported ||
 	    local->hw.queues < 4 || !bss->wmm_used)
 		ifmgd->flags |= IEEE80211_STA_DISABLE_11N;
+
+	/* disable VHT if we don't support it or the AP doesn't use WMM */
+	if (!sband->vht_cap.vht_supported ||
+	    local->hw.queues < IEEE80211_NUM_ACS || !bss->wmm_used) {
+		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+		netdev_info(sdata->dev,
+			    "disabling VHT as WMM/QoS is not supported\n");
+	}
 
 	memcpy(&ifmgd->ht_capa, &req->ht_capa, sizeof(ifmgd->ht_capa));
 	memcpy(&ifmgd->ht_capa_mask, &req->ht_capa_mask,
