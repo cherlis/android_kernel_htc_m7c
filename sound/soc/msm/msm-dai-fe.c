@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -19,6 +19,13 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
+
+//htc audio ++
+#undef pr_info
+#undef pr_err
+#define pr_info(fmt, ...) pr_aud_info(fmt, ##__VA_ARGS__)
+#define pr_err(fmt, ...) pr_aud_err(fmt, ##__VA_ARGS__)
+//htc audio --
 
 static struct snd_soc_dai_ops msm_fe_dai_ops = {};
 
@@ -84,7 +91,7 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
 					SNDRV_PCM_FMTBIT_S24_LE),
 			.channels_min = 1,
-			.channels_max = 8,
+			.channels_max = 6,
 			.rate_min =     8000,
 			.rate_max =	48000,
 		},
@@ -177,7 +184,7 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
 					SNDRV_PCM_FMTBIT_S24_LE),
 			.channels_min = 1,
-			.channels_max = 8,
+			.channels_max = 6,
 			.rate_min =	8000,
 			.rate_max = 48000,
 		},
@@ -205,21 +212,23 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
 					SNDRV_PCM_FMTBIT_S24_LE),
 			.channels_min = 1,
-			.channels_max = 8,
+			.channels_max = 6,
 			.rate_min =	8000,
 			.rate_max = 48000,
 		},
+		/* HTC_AUD_LOWL_START */
 		.capture = {
-			.stream_name = "MultiMedia5 Capture",
-			.aif_name = "MM_UL5",
-			.rates = (SNDRV_PCM_RATE_8000_48000|
-					SNDRV_PCM_RATE_KNOT),
-			.formats = SNDRV_PCM_FMTBIT_S16_LE,
-			.channels_min = 1,
-			.channels_max = 8,
-			.rate_min =     8000,
-			.rate_max =	48000,
+		    .stream_name = "MultiMedia5 Capture",
+		    .aif_name = "MM_UL5",
+		    .rates = (SNDRV_PCM_RATE_8000_48000|
+		            SNDRV_PCM_RATE_KNOT),
+		    .formats = SNDRV_PCM_FMTBIT_S16_LE,
+		    .channels_min = 1,
+		    .channels_max = 8,
+		    .rate_min =     8000,
+		    .rate_max = 48000,
 		},
+		/* HTC_AUD_LOWL_END */
 		.ops = &msm_fe_Multimedia_dai_ops,
 		.name = "MultiMedia5",
 	},
@@ -232,20 +241,9 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
 					SNDRV_PCM_FMTBIT_S24_LE),
 			.channels_min = 1,
-			.channels_max = 8,
+			.channels_max = 6,
 			.rate_min =	8000,
 			.rate_max = 48000,
-		},
-		.capture = {
-			.stream_name = "MultiMedia6 Capture",
-			.aif_name = "MM_UL6",
-			.rates = (SNDRV_PCM_RATE_8000_48000|
-					SNDRV_PCM_RATE_KNOT),
-			.formats = SNDRV_PCM_FMTBIT_S16_LE,
-			.channels_min = 1,
-			.channels_max = 8,
-			.rate_min =     8000,
-			.rate_max =	48000,
 		},
 		.ops = &msm_fe_Multimedia_dai_ops,
 		.name = "MultiMedia6",
@@ -259,7 +257,7 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
 					SNDRV_PCM_FMTBIT_S24_LE),
 			.channels_min = 1,
-			.channels_max = 8,
+			.channels_max = 6,
 			.rate_min =	8000,
 			.rate_max = 48000,
 		},
@@ -275,7 +273,7 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
 					SNDRV_PCM_FMTBIT_S24_LE),
 			.channels_min = 1,
-			.channels_max = 8,
+			.channels_max = 6,
 			.rate_min =	8000,
 			.rate_max = 48000,
 		},
@@ -375,6 +373,7 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 		.ops = &msm_fe_dai_ops,
 		.name = "HDMI_HOSTLESS"
 	},
+//HTC_AUD +++
 	{
 		.playback = {
 			.stream_name = "PRI_I2S_HOSTLESS Playback",
@@ -413,6 +412,7 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 		.ops = &msm_fe_dai_ops,
 		.name = "MM_STUB",
 	},
+//HTC_AUD ---
 	{
 		.playback = {
 			.stream_name = "AUXPCM Hostless Playback",
@@ -472,8 +472,8 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 					SNDRV_PCM_FMTBIT_S24_LE),
 			.channels_min = 1,
 			.channels_max = 2,
-			.rate_min =     8000,
-			.rate_max =    48000,
+			.rate_min =     48000,
+			.rate_max =     8000,
 		},
 		.capture = {
 			.stream_name = "MI2S Hostless Capture",
@@ -545,7 +545,7 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 	{
 		.playback = {
 			.stream_name = "Voice2 Playback",
-			.aif_name = "VOICE2_DL",
+			.aif_name = "Voice2_DL",
 			.rates = SNDRV_PCM_RATE_8000_48000,
 			.formats = SNDRV_PCM_FMTBIT_S16_LE,
 			.channels_min = 1,
@@ -555,7 +555,7 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 		},
 		.capture = {
 			.stream_name = "Voice2 Capture",
-			.aif_name = "VOICE2_UL",
+			.aif_name = "Voice2_UL",
 			.rates = SNDRV_PCM_RATE_8000_48000,
 			.formats = SNDRV_PCM_FMTBIT_S16_LE,
 			.channels_min = 1,
@@ -565,6 +565,30 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 		},
 		.ops = &msm_fe_dai_ops,
 		.name = "Voice2",
+	},
+	{
+		.playback = {
+			.stream_name = "Voice2 Stub Playback",
+			.aif_name = "VOICE2_STUB_DL",
+			.rates = SNDRV_PCM_RATE_8000_48000,
+			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+			.channels_min = 1,
+			.channels_max = 2,
+			.rate_min = 8000,
+			.rate_max = 48000,
+		},
+		.capture = {
+			.stream_name = "Voice2 Stub Capture",
+			.aif_name = "VOICE2_STUB_UL",
+			.rates = SNDRV_PCM_RATE_8000_48000,
+			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+			.channels_min = 1,
+			.channels_max = 2,
+			.rate_min = 8000,
+			.rate_max = 48000,
+		},
+		.ops = &msm_fe_dai_ops,
+		.name = "VOICE2_STUB",
 	},
 	{
 		.playback = {
@@ -590,31 +614,6 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 		.ops = &msm_fe_dai_ops,
 		.name = "VOLTE_STUB",
 	},
-	{
-		.playback = {
-			.stream_name = "Voice2 Stub Playback",
-			.aif_name = "VOICE2_STUB_DL",
-			.rates = SNDRV_PCM_RATE_8000_48000,
-			.formats = SNDRV_PCM_FMTBIT_S16_LE,
-			.channels_min = 1,
-			.channels_max = 2,
-			.rate_min = 8000,
-			.rate_max = 48000,
-		},
-		.capture = {
-			.stream_name = "VoLTE Stub Capture",
-			.aif_name = "VOICE2_STUB_UL",
-			.rates = SNDRV_PCM_RATE_8000_48000,
-			.formats = SNDRV_PCM_FMTBIT_S16_LE,
-			.channels_min = 1,
-			.channels_max = 2,
-			.rate_min = 8000,
-			.rate_max = 48000,
-		},
-		.ops = &msm_fe_dai_ops,
-		.name = "VOICE2_STUB",
-	},
-
 };
 
 static __devinit int msm_fe_dai_dev_probe(struct platform_device *pdev)

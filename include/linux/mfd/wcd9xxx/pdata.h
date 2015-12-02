@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,9 +15,6 @@
 #define __MFD_TABLA_PDATA_H__
 
 #include <linux/slimbus/slimbus.h>
-
-#define MICBIAS_EXT_BYP_CAP 0x00
-#define MICBIAS_NO_EXT_BYP_CAP 0x01
 
 #define SITAR_LDOH_1P95_V 0x0
 #define SITAR_LDOH_2P35_V 0x1
@@ -73,6 +70,11 @@
 #define TABLA_DCYCLE_3839 0xE
 #define TABLA_DCYCLE_4095 0xF
 
+//HTC_AUD ++
+#define MICBIAS_EXT_BYP_CAP 0x00
+#define MICBIAS_NO_EXT_BYP_CAP 0x01
+//HTC_AUD --
+
 struct wcd9xxx_amic {
 	/*legacy mode, txfe_enable and txfe_buff take 7 input
 	 * each bit represent the channel / TXFE number
@@ -102,11 +104,12 @@ struct wcd9xxx_micbias_setting {
 	u32 cfilt1_mv; /* in mv */
 	u32 cfilt2_mv; /* in mv */
 	u32 cfilt3_mv; /* in mv */
-	/* Different WCD9xxx series codecs may not
-	 * have 4 mic biases. If a codec has fewer
-	 * mic biases, some of these properties will
-	 * not be used.
-	 */
+//HTC_AUD ++
+/* Different WCD9xxx series codecs may not
+ * have 4 mic biases. If a codec has fewer
+ * mic biases, some of these properties will
+ * not be used.
+ */
 	u8 bias1_cfilt_sel;
 	u8 bias2_cfilt_sel;
 	u8 bias3_cfilt_sel;
@@ -115,6 +118,7 @@ struct wcd9xxx_micbias_setting {
 	u8 bias2_cap_mode;
 	u8 bias3_cap_mode;
 	u8 bias4_cap_mode;
+//HTC_AUD --
 };
 
 struct wcd9xxx_ocp_setting {
@@ -125,7 +129,7 @@ struct wcd9xxx_ocp_setting {
 	unsigned int	hph_ocp_limit:3; /* Headphone OCP current limit */
 };
 
-#define MAX_REGULATOR	7
+#define MAX_REGULATOR	6
 /*
  *      format : TABLA_<POWER_SUPPLY_PIN_NAME>_CUR_MAX
  *

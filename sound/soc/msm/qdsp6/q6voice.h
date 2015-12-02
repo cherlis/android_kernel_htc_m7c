@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,20 +21,6 @@
 #define VOC_REC_UPLINK		0x00
 #define VOC_REC_DOWNLINK	0x01
 #define VOC_REC_BOTH		0x02
-
-/* Needed for VOIP & VOLTE support */
-/* Due to Q6 memory map issue */
-enum {
-	VOIP_CAL,
-	VOLTE_CAL,
-	NUM_VOICE_CAL_BUFFERS
-};
-
-enum {
-	CVP_CAL,
-	CVS_CAL,
-	NUM_VOICE_CAL_TYPES
-};
 
 struct voice_header {
 	uint32_t id;
@@ -643,7 +629,7 @@ struct cvs_start_record_cmd {
 
 #define VSS_IVOCPROC_CMD_SET_DEVICE			0x000100C4
 
-#define VSS_IVOCPROC_CMD_SET_DEVICE_V2			0x000112C6
+#define VSS_IVOCPROC_CMD_SET_DEVICE_V2		0x000112C6
 
 #define VSS_IVOCPROC_CMD_SET_VP3_DATA			0x000110EB
 
@@ -963,14 +949,9 @@ struct voice_data {
 };
 
 struct cal_mem {
-	/* Physical Address */
-	uint32_t paddr;
-	/* Kernel Virtual Address */
-	uint32_t kvaddr;
-};
-
-struct cal_data {
-	struct cal_mem	cal_data[NUM_VOICE_CAL_TYPES];
+	struct ion_handle *handle;
+	uint32_t phy;
+	void *buf;
 };
 
 #define MAX_VOC_SESSIONS 4
@@ -991,9 +972,9 @@ struct common_data {
 	/* APR to CVP in the Q6 */
 	void *apr_q6_cvp;
 
-	struct ion_client *ion_client;
-	struct ion_handle *ion_handle;
-	struct cal_data voice_cal[NUM_VOICE_CAL_BUFFERS];
+	struct ion_client *client;
+	struct cal_mem cvp_cal;
+	struct cal_mem cvs_cal;
 
 	struct mutex common_lock;
 
@@ -1048,11 +1029,6 @@ uint8_t voc_get_route_flag(uint16_t session_id, uint8_t path_dir);
 #define VOIP_SESSION_NAME "VoIP session"
 #define VOLTE_SESSION_NAME "VoLTE session"
 #define VOICE2_SESSION_NAME "Voice2 session"
-
-#define VOC_PATH_PASSIVE 0
-#define VOC_PATH_FULL 1
-#define VOC_PATH_VOLTE_PASSIVE 2
-#define VOC_PATH_VOICE2_PASSIVE 3
 
 uint16_t voc_get_session_id(char *name);
 

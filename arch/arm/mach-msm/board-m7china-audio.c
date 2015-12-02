@@ -186,25 +186,25 @@ static struct acoustic_ops acoustic = {
 	.set_q6_effect = apq8064_set_q6_effect_mode
 };
 
-//static struct q6asm_ops qops = {
-//	.get_q6_effect = apq8064_get_q6_effect_mode,
-//};
+static struct q6asm_ops qops = {
+	.get_q6_effect = apq8064_get_q6_effect_mode,
+};
 
-//static struct msm_pcm_routing_ops rops = {
-//	.get_q6_effect = apq8064_get_q6_effect_mode,
-//};
+static struct msm_pcm_routing_ops rops = {
+	.get_q6_effect = apq8064_get_q6_effect_mode,
+};
 
-//static struct msm_compr_q6_ops cops = {
-//	.get_24b_audio = apq8064_get_24b_audio,
-//};
+static struct msm_compr_q6_ops cops = {
+	.get_24b_audio = apq8064_get_24b_audio,
+};
 
 static int __init m7china_audio_init(void)
 {
         int ret = 0;
 
-//	htc_register_q6asm_ops(&qops);
-//	htc_register_pcm_routing_ops(&rops);
-//	htc_register_compr_q6_ops(&cops);
+	htc_register_q6asm_ops(&qops);
+	htc_register_pcm_routing_ops(&rops);
+	htc_register_compr_q6_ops(&cops);
 	acoustic_register_ops(&acoustic);
 /* Due to this file is common for all 8064 china, we add flag to divide projects */
 /* DLP#China use differnet regulator source for VREG_SPK_1V8 */

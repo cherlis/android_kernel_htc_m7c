@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -59,8 +59,8 @@ enum {
 	MSM_FRONTEND_DAI_MULTIMEDIA5,
 	MSM_FRONTEND_DAI_MULTIMEDIA6,
 	MSM_FRONTEND_DAI_MULTIMEDIA7,
-	MSM_FRONTEND_DAI_MULTIMEDIA8,
 	MSM_FRONTEND_DAI_MULTIMEDIA_STUB,
+	MSM_FRONTEND_DAI_MULTIMEDIA8,
 	MSM_FRONTEND_DAI_CS_VOICE,
 	MSM_FRONTEND_DAI_VOIP,
 	MSM_FRONTEND_DAI_AFE_RX,
@@ -68,8 +68,8 @@ enum {
 	MSM_FRONTEND_DAI_VOICE_STUB,
 	MSM_FRONTEND_DAI_VOLTE,
 	MSM_FRONTEND_DAI_VOICE2,
-	MSM_FRONTEND_DAI_VOLTE_STUB,
-	MSM_FRONTEND_DAI_VOICE2_STUB,
+    MSM_FRONTEND_DAI_VOICE2_STUB,
+    MSM_FRONTEND_DAI_VOLTE_STUB,
 	MSM_FRONTEND_DAI_MAX,
 };
 
@@ -112,15 +112,24 @@ enum {
 
 enum msm_pcm_routing_event {
 	MSM_PCM_RT_EVT_BUF_RECFG,
-	MSM_PCM_RT_EVT_DEVSWITCH,
 	MSM_PCM_RT_EVT_MAX,
 };
+
+struct msm_pcm_routing_ops {
+	int (*get_q6_effect) (void);
+};
+
 /* dai_id: front-end ID,
  * dspst_id:  DSP audio stream ID
  * stream_type: playback or capture
  */
+//void msm_pcm_routing_reg_phy_stream(int fedai_id, int dspst_id,
+//	int stream_type);
+/* HTC_AUD_LOWL_START */
 void msm_pcm_routing_reg_phy_stream(int fedai_id, bool perf_mode,
 				int dspst_id, int stream_type);
+/* HTC_AUD_LOWL_END */
+
 void msm_pcm_routing_reg_psthr_stream(int fedai_id, int dspst_id,
 		int stream_type, int enable);
 
@@ -129,7 +138,8 @@ struct msm_pcm_routing_evt {
 	void *priv_data;
 };
 
-void msm_pcm_routing_reg_phy_stream_v2(int fedai_id, bool perf_mode,
+void msm_pcm_routing_reg_phy_stream_v2(int fedai_id,
+						bool perf_mode,
 				       int dspst_id, int stream_type,
 				       struct msm_pcm_routing_evt event_info);
 
@@ -144,5 +154,9 @@ int msm_routing_check_backend_enabled(int fedai_id);
 int multi_ch_pcm_set_volume(unsigned volume);
 
 int compressed_set_volume(unsigned volume);
+//HTC_AUD_START
+int compressed2_set_volume(unsigned volume);
+//HTC_AUD_END
 
+void htc_register_pcm_routing_ops(struct msm_pcm_routing_ops *ops);
 #endif /*_MSM_PCM_H*/

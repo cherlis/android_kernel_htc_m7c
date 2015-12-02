@@ -20,12 +20,20 @@
 #include <linux/clk.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
+#include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/apr_audio.h>
 #include <sound/q6afe.h>
 #include <sound/msm-dai-q6.h>
 #include <sound/pcm_params.h>
 #include <mach/clk.h>
+
+//htc audio ++
+#undef pr_info
+#undef pr_err
+#define pr_info(fmt, ...) pr_aud_info(fmt, ##__VA_ARGS__)
+#define pr_err(fmt, ...) pr_aud_err(fmt, ##__VA_ARGS__)
+//htc audio --
 
 enum {
 	STATUS_PORT_STARTED, /* track if AFE port has started */
@@ -130,14 +138,24 @@ static int msm_dai_q6_mi2s_startup(struct snd_pcm_substream *substream,
 	dev_dbg(dai->dev, "%s: cnst list %p\n", __func__,
 		mi2s_dai_data->rate_constraint.list);
 
-	if (mi2s_dai_data->rate_constraint.list) {
-		snd_pcm_hw_constraint_list(substream->runtime, 0,
-				SNDRV_PCM_HW_PARAM_RATE,
-				&mi2s_dai_data->rate_constraint);
-		snd_pcm_hw_constraint_list(substream->runtime, 0,
-				SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
-				&mi2s_dai_data->bitwidth_constraint);
+// HTC_AUD ++
+	/* Due to mi2s is fix at 24bit/48K. To prevent refining hw params fail
+	   when MI2S EC refernce and Voice/VOIP TX are active */
+	if (mi2s_dai_data->rate_constraint.list &&
+		mi2s_dai_data->bitwidth_constraint.list) {
+		if (*mi2s_dai_data->bitwidth_constraint.list == 24) {
+			dev_dbg(dai->dev, "%s: do not apply cnst list\n", __func__);
+		} else {
+			dev_dbg(dai->dev, "%s: apply cnst list\n", __func__);
+			snd_pcm_hw_constraint_list(substream->runtime, 0,
+					SNDRV_PCM_HW_PARAM_RATE,
+					&mi2s_dai_data->rate_constraint);
+			snd_pcm_hw_constraint_list(substream->runtime, 0,
+					SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+					&mi2s_dai_data->bitwidth_constraint);
+		}
 	}
+// HTC_AUD --
 
 	return 0;
 }
@@ -208,9 +226,14 @@ static int msm_dai_q6_mi2s_hw_params(struct snd_pcm_substream *substream,
 		goto error_invalid_data;
 	}
 
-	if (params_format(params) == SNDRV_PCM_FORMAT_S24_LE)
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		bit_width = 16;
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
 		bit_width = 24;
-
+		break;
+	}
 	dai_data->rate = params_rate(params);
 	dai_data->port_config.mi2s.bitwidth = bit_width;
 	dai_data->bitwidth = bit_width;
@@ -471,9 +494,6 @@ static int msm_dai_q6_cdc_hw_params(struct snd_pcm_hw_params *params,
 	dai_data->channels = params_channels(params);
 	switch (dai_data->channels) {
 	case 2:
-	case 4:
-	case 6:
-	case 8:
 		dai_data->port_config.mi2s.channel = MSM_AFE_STEREO;
 		break;
 	case 1:
@@ -488,9 +508,15 @@ static int msm_dai_q6_cdc_hw_params(struct snd_pcm_hw_params *params,
 	dev_dbg(dai->dev, " channel %d sample rate %d entered\n",
 	dai_data->channels, dai_data->rate);
 
-	if (params_format(params) == SNDRV_PCM_FORMAT_S24_LE)
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		bit_width = 16;
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
 		bit_width = 24;
-
+		break;
+	}
+	/* Q6 only supports 16 as now */
 	dai_data->port_config.mi2s.bitwidth = bit_width;
 	dai_data->port_config.mi2s.line = 1;
 	return 0;
@@ -524,9 +550,15 @@ static int msm_dai_q6_slim_bus_hw_params(struct snd_pcm_hw_params *params,
 	dai_data->channels = params_channels(params);
 	dai_data->rate = params_rate(params);
 
-	if (params_format(params) == SNDRV_PCM_FORMAT_S24_LE)
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		bit_width = 16;
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
 		bit_width = 24;
-
+		break;
+	}
+	/* Q6 only supports 16 as now */
 	dai_data->port_config.slim_sch.bit_width = bit_width;
 	dai_data->port_config.slim_sch.data_format = 0;
 	dai_data->port_config.slim_sch.num_channels = dai_data->channels;
@@ -660,9 +692,14 @@ static int msm_dai_q6_afe_rtproxy_hw_params(struct snd_pcm_hw_params *params,
 	pr_debug("channel %d entered,dai_id: %d,rate: %d\n",
 	dai_data->port_config.rtproxy.num_ch, dai->id, dai_data->rate);
 
-	if (params_format(params) == SNDRV_PCM_FORMAT_S24_LE)
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		bit_width = 16;
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
 		bit_width = 24;
-
+		break;
+	}
 	dai_data->port_config.rtproxy.bitwidth = bit_width;
 	dai_data->port_config.rtproxy.interleaved = 1;
 	dai_data->port_config.rtproxy.frame_sz = params_period_bytes(params);
@@ -1507,8 +1544,7 @@ static struct snd_soc_dai_driver msm_dai_q6_i2s_rx_dai = {
 	.playback = {
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_8000 |
 		SNDRV_PCM_RATE_16000,
-		.formats = (SNDRV_PCM_FMTBIT_S16_LE |
-				SNDRV_PCM_FMTBIT_S24_LE),
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
 		.channels_min = 1,
 		.channels_max = 4,
 		.rate_min =     8000,
@@ -1583,8 +1619,7 @@ static struct snd_soc_dai_driver msm_dai_q6_slimbus_rx_dai = {
 	.playback = {
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_8000 |
 		SNDRV_PCM_RATE_16000,
-		.formats = (SNDRV_PCM_FMTBIT_S16_LE |
-				SNDRV_PCM_FMTBIT_S24_LE),
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
 		.channels_min = 1,
 		.channels_max = 2,
 		.rate_min =     8000,
@@ -1744,8 +1779,7 @@ static struct snd_soc_dai_driver msm_dai_q6_mi2s_dai = {
 	.playback = {
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_8000 |
 		SNDRV_PCM_RATE_16000,
-		.formats = (SNDRV_PCM_FMTBIT_S16_LE |
-				SNDRV_PCM_FMTBIT_S24_LE),
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
 		.rate_min =     8000,
 		.rate_max =	48000,
 	},
@@ -1764,8 +1798,7 @@ static struct snd_soc_dai_driver msm_dai_q6_mi2s_dai = {
 static struct snd_soc_dai_driver msm_dai_q6_slimbus_1_rx_dai = {
 	.playback = {
 		.rates = SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000,
-		.formats = (SNDRV_PCM_FMTBIT_S16_LE |
-				SNDRV_PCM_FMTBIT_S24_LE),
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
 		.channels_min = 1,
 		.channels_max = 1,
 		.rate_min = 8000,
@@ -1778,9 +1811,8 @@ static struct snd_soc_dai_driver msm_dai_q6_slimbus_1_rx_dai = {
 
 static struct snd_soc_dai_driver msm_dai_q6_slimbus_1_tx_dai = {
 	.capture = {
-		.rates = SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000,
-		.formats = (SNDRV_PCM_FMTBIT_S16_LE |
-				SNDRV_PCM_FMTBIT_S24_LE),
+		.rates = SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 		.channels_min = 1,
 		.channels_max = 1,
 		.rate_min = 8000,
